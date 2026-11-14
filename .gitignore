@@ -12,7 +12,9 @@ build/
 *.egg-info/
 
 docs/
+dummy_data/
 knowledge_base/
+output_directory/
 scripts/
 .env
 .ruff_cache/

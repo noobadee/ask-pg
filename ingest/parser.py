@@ -162,6 +162,14 @@ LABEL = {
 IDS, REFS, UNHANDLED, UNRESOLVED = {}, [], Counter(), Counter()
 
 
+def section_blocks(element, level):
+    output = []
+    for character in element:
+        if not isinstance(character, str) or character.tag in SKIP:
+            continue
+        # output += section(character, level) if character.tag in SECT else block(character)
+
+
 def main():
     # ARGUMENT FORMAT
     # python parser.py <xml-filepath> <output-directory> --major <major-version> --version <minor-version>
@@ -178,11 +186,34 @@ def main():
     )
     root = etree.parse(arguments.xml, parser).getroot()
 
-    # for element in root.iter():
-    #     if element.get("id"):
-    #         print(element)
+    IDS.update(
+        {
+            element.get("id"): element
+            for element in root.iter(etree.Element)
+            if element.get("id")
+        }
+    )
 
-    # IDS.update({})
+    base = f"https://www.postgresql.org/docs/{arguments.major}"
+
+    # Creates an output directory (and an md subdirectory inside it) if they don’t already exist,
+    # and stores the base path in out for later use.
+    output_directory = Path(arguments.outdir)
+    (output_directory / "md").mkdir(parents=True, exist_ok=True)
+
+    stats, num_of_characters, seen = Counter(), 0, set()
+
+    # with open(output_directory / "units.jsonl", "w", encoding="utf-8") as file:
+    #     for element in root.iter(*(UNIT | CONTAINER)):
+    #         universal_id = element.get("id")
+
+    #         if not universal_id or universal_id in seen:
+    #             continue
+
+    #         REFS.clear()
+
+    #         body = intro_blocks(element) if element.tag in CONTAINER else section_blocks(element, 2)
+
     # print(f"CODE: {len(CODE)}")
     # print(f"PASS: {len(PASS)}")
     # print(f"DROP: {len(DROP)}")
