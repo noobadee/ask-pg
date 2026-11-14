@@ -1,0 +1,7 @@
+ruff
+transformers
+lxml
+torch
+python-dotenv
+pydantic
+pydantic-settings

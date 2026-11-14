@@ -1,0 +1,17 @@
+# uv virtual environment (do not commit)
+.venv/
+
+# Python cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution and build outputs (if building a package)
+dist/
+build/
+*.egg-info/
+
+docs/
+knowledge_base/
+scripts/
+.ruff_cache/
