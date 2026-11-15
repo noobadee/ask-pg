@@ -162,12 +162,106 @@ LABEL = {
 IDS, REFS, UNHANDLED, UNRESOLVED = {}, [], Counter(), Counter()
 
 
+def title_of(element):
+    pass
+
+
+def mixed(element):
+    pass
+
+
+def fence(text, language=""):
+    pass
+
+
+def inline(element, code=False):
+    pass
+
+
+def cmdsyn(element):
+    pass
+
+
+# It is the entry point for converting a non-section element into Markdown
+# Example output:
+#   ["<!-- id:foo -->"] element has an id and its tag is in MARK
+#   [] otherwise
+def block(element):
+    tag = element.tag
+
+    if not isinstance(tag, str) or tag in SKIP:
+        return []
+
+    mark = (
+        [f"<!-- id:{element.get('id')} -->"]
+        if element.get("id") and tag in MARK
+        else []
+    )
+
+    return mark + _block(element, tag)
+
+
+# def _block(element, tag):
+#     if tag in ("para", "simpara"):
+#         return mixed(element)
+
+#     if tag in ("programlisting", "screen", "synopsis", "literallayout"):
+#         language = (
+#             (element.get("language") or "").lower() if tag == "programlisting" else ""
+#         )
+#         return [fence(inline(element, True), language)]
+
+#     if tag == "cmdsynopsis":
+#         return [fence(cmdsyn(element))]
+
+
+# It renders one section element as Markdown
+# The output is a list of Markdown strings
+# Example output (when combined with section_blocks):
+#   <!-- id:install -->
+#   ## Installation
+#   ...paragraph blocks...
+#   ### Prerequisites
+#   ...blocks...
+def section(element, level):
+    output = [f"<!-- id:{element.get('id')} -->"] if element.get("id") else []
+    output.append("#" * min(level, 6) + " " + title_of(element))
+    return output + section_blocks(element, level + 1)
+
+
+# Converts the children of a section-like element into a flat list of blocks
+# at a given heading level
 def section_blocks(element, level):
     output = []
-    for character in element:
-        if not isinstance(character, str) or character.tag in SKIP:
+
+    for child in element:
+        if not isinstance(child, str) or child.tag in SKIP:
             continue
-        # output += section(character, level) if character.tag in SECT else block(character)
+        output += section(child, level) if child.tag in SECT else block(child)
+
+    return output
+
+
+# It collects the introductory content of a container element as a flat list of blocks
+# It looks only at the direct element's children
+def intro_blocks(element):
+    output = []
+
+    for child in element:
+        if (
+            not isinstance(child.tag, str)
+            or child.tag in SKIP
+            or child.tag in UNIT
+            or child.tag in CONTAINER
+        ):
+            continue
+        out += (
+            section_blocks(child, 2)
+            if child.tag == "partintro"
+            else (section(child, 2) if child.tag in SECT else block(child))
+        )
+
+    return output
 
 
 def main():
@@ -186,6 +280,8 @@ def main():
     )
     root = etree.parse(arguments.xml, parser).getroot()
 
+    # Scans every element in an XML tree (lxml)
+    # and registers each one that has an id attribute
     IDS.update(
         {
             element.get("id"): element
@@ -203,16 +299,20 @@ def main():
 
     stats, num_of_characters, seen = Counter(), 0, set()
 
-    # with open(output_directory / "units.jsonl", "w", encoding="utf-8") as file:
-    #     for element in root.iter(*(UNIT | CONTAINER)):
-    #         universal_id = element.get("id")
+    with open(output_directory / "units.jsonl", "w", encoding="utf-8") as file:
+        for element in root.iter(*(UNIT | CONTAINER)):
+            universal_id = element.get("id")
 
-    #         if not universal_id or universal_id in seen:
-    #             continue
+            if not universal_id or universal_id in seen:
+                continue
 
-    #         REFS.clear()
+            REFS.clear()
 
-    #         body = intro_blocks(element) if element.tag in CONTAINER else section_blocks(element, 2)
+            body = (
+                intro_blocks(element)
+                if element.tag in CONTAINER
+                else section_blocks(element, 2)
+            )
 
     # print(f"CODE: {len(CODE)}")
     # print(f"PASS: {len(PASS)}")

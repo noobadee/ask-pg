@@ -1,4 +1,4 @@
-# uv virtual environment (do not commit)
+# uv virtual environment
 .venv/
 
 # Python cache and temporary files
@@ -14,6 +14,7 @@ build/
 docs/
 dummy_data/
 knowledge_base/
+notebooks/
 output_directory/
 scripts/
 .env
