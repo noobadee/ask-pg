@@ -162,6 +162,14 @@ LABEL = {
 IDS, REFS, UNHANDLED, UNRESOLVED = {}, [], Counter(), Counter()
 
 
+def norm(s):
+    pass
+
+
+def plain(element):
+    pass
+
+
 def title_of(element):
     pass
 
@@ -178,7 +186,19 @@ def inline(element, code=False):
     pass
 
 
+def gloss_see(child):
+    pass
+
+
+def bullets(items, ordered):
+    pass
+
+
 def cmdsyn(element):
+    pass
+
+
+def table_md(element):
     pass
 
 
@@ -201,18 +221,103 @@ def block(element):
     return mark + _block(element, tag)
 
 
-# def _block(element, tag):
-#     if tag in ("para", "simpara"):
-#         return mixed(element)
+def _block(element, tag):
+    if tag in ("para", "simpara"):
+        return mixed(element)
 
-#     if tag in ("programlisting", "screen", "synopsis", "literallayout"):
-#         language = (
-#             (element.get("language") or "").lower() if tag == "programlisting" else ""
-#         )
-#         return [fence(inline(element, True), language)]
+    if tag in ("programlisting", "screen", "synopsis", "literallayout"):
+        language = (
+            (element.get("language") or "").lower() if tag == "programlisting" else ""
+        )
+        return [fence(inline(element, True), language)]
 
-#     if tag == "cmdsynopsis":
-#         return [fence(cmdsyn(element))]
+    if tag == "cmdsynopsis":
+        return [fence(cmdsyn(element))]
+
+    if tag in ("itemizedlist", "orderedlist", "procedure", "substeps"):
+        items = [
+            "\n\n".join(mixed(li))
+            for li in element
+            if isinstance(li.tag, str) and li.tag in ("listitem", "step")
+        ]
+        return [bullets(items, tag != "itemizedlist")] if items else []
+
+    if tag == "variablelist":
+        items = []
+        for ve in element.findall("varlistentry"):
+            mark = f"<!-- id:{ve.get('id')} -->" if ve.get("id") else ""
+            terms = ", ".join(
+                f"**{norm(inline(term))}**" for term in ve.findall("term")
+            )
+            li = ve.find("listitem")
+            body = "\n\n".join(mixed(li)) if li is not None else ""
+            items.append(mark + terms + ("\n\n" + body if body else ""))
+        return [bullets(items, False) if items else []]
+
+    if tag in ADMON:
+        title = element.find("title")
+        label = plain(title) if title is not None else title.capitalize()
+        text = f"**{label}:**" + "\n\n".join(mixed(element))
+        return ["\n".join("> " + line if line else ">" for line in text.split("\n"))]
+
+    if tag in ("example", "informalexample"):
+        title = element.find("title")
+        return ([f"**Example: {plain(title)}**"] if title is not None else []) + mixed(
+            element
+        )
+
+    if tag == "figure":
+        title = element.find("title")
+        return [f"*[Figure: {plain(title) if title is not None else ''}*"]
+
+    if tag == "mediaobject":
+        return []
+
+    if tag == "formalpara":
+        title = element.find("title")
+        blocks = mixed(element)
+        if title is not None and blocks:
+            blocks[0] = f"**{plain(title)}.** " + blocks[0]
+
+    if tag == "blockquote":
+        text = "\n\n".join(mixed(element))
+        return ["\n".join("> " + line if line else ">" for line in text.split("\n"))]
+
+    if tag == "simplelist":
+        return [
+            bullets(
+                [norm(inline(member)) for member in element.findall("member")], False
+            )
+        ]
+
+    if tag in ("table", "informaltable"):
+        return table_md(element)
+
+    if tag == "refnamediv":
+        names = ", ".join(plain(name) for name in element.findall("refname"))
+        purpose = element.find("refpurpose")
+        return [
+            f"**{names}** — {plain(purpose)}" if purpose is not None else f"**{names}**"
+        ]
+
+    if tag == "glossentry":
+        glossterm = element.find("glossterm")
+        acronym = element.find("acronym")
+        glossdef = element.find("glossdef")
+
+        head = f"**{norm(inline(glossterm)) if glossterm is not None else ''}**" + (
+            f" ({plain(acronym)})" if acronym is not None else ""
+        )
+        body = "\n\n".join(mixed(glossdef)) if glossdef is not None else ""
+        see = " ".join(
+            gloss_see(child)
+            for child in element
+            if isinstance(child.tag, str) and child.tag in ("glosssee", "glossseealso")
+        )
+        return ["\n\n".join(x for x in (head, body, see) if x)]
+
+    UNHANDLED[tag] += 1
+    return mixed(element)
 
 
 # It renders one section element as Markdown
