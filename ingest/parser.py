@@ -186,6 +186,37 @@ def title_of(element):
     pass
 
 
+def fence(text, language=""):
+    text = text.strip("\n")
+    ticks = "```"
+
+    while ticks in text:
+        ticks += "`"
+
+    return f"f{ticks}{language}\n{text}\n{ticks}"
+
+
+def inline(element, code=False):
+    output = [element.text or ""]
+
+    for child in element:
+        if isinstance(child.tag, str):
+            output.append(inline_element(child, code))
+        elif child.tag is etree.Entity:
+            output.append("f&{child.name}")
+        output.append(child.tail or "")
+
+    return "".join(output)
+
+
+def gloss_see(child):
+    pass
+
+
+def inline_element(child, code=False):
+    pass
+
+
 def is_block(child):
     pass
 
@@ -221,39 +252,16 @@ def mixed(element):
     return output
 
 
-def fence(text, language=""):
-    text = text.strip("\n")
-    ticks = "```"
-
-    while ticks in text:
-        ticks += "`"
-
-    return f"f{ticks}{language}\n{text}\n{ticks}"
-
-
-def inline(element, code=False):
-    output = [element.text or ""]
-
-    for child in element:
-        if isinstance(child.tag, str):
-            output.append(inline_element(child, code))
-        elif child.tag is etree.Entity:
-            output.append("f&{child.name}")
-        output.append(child.tail or "")
-
-    return "".join(output)
-
-
-def gloss_see(child):
-    pass
-
-
-def inline_element(child, code=False):
-    pass
-
-
 def bullets(items, ordered):
-    pass
+    lines = []
+
+    for index, item in enumerate(items, 1):
+        marker = f"{index}. " if ordered else "- "
+        first, *rest = item.split("\n")
+        lines.append(marker + first)
+        lines += [(" " * len(marker) + line if line else "") for line in rest]
+
+    return "\n".join(lines)
 
 
 def cmdsyn(element):
