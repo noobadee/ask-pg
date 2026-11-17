@@ -162,12 +162,24 @@ LABEL = {
 IDS, REFS, UNHANDLED, UNRESOLVED = {}, [], Counter(), Counter()
 
 
-def norm(s):
-    pass
+def normalize(element):
+    return re.sub(r"\s+", " ", element).strip()
 
 
 def plain(element):
-    pass
+    parts = []
+
+    def render_node(element):
+        parts.append(element.text or "")
+
+        for child in element:
+            if isinstance(child.tag, str) and child.tag != "indexterm":
+                render_node(child)
+
+            parts.append(child.tail or "")
+
+    render_node(element)
+    return normalize("".join(parts))
 
 
 def title_of(element):
@@ -182,7 +194,7 @@ def mixed(element):
     output, pending_parts = [], []
 
     def flush():
-        text = norm("".join(pending_parts))
+        text = normalize("".join(pending_parts))
 
         if text:
             output.append(text)
@@ -266,10 +278,10 @@ def cmdsyn(element):
         if tag in ("arg", "group"):
             if tag == "group":
                 inner = " | ".join(
-                    x for x in (norm(render_node(child)) for child in element) if x
+                    x for x in (normalize(render_node(child)) for child in element) if x
                 )
             else:
-                inner = norm(body(element))
+                inner = normalize(body(element))
 
             choice = element.get("choice", "opt")
 
@@ -285,7 +297,7 @@ def cmdsyn(element):
 
         return body(element)
 
-    return re.sub(r" ?\x00 ?", "\n", norm(body(element)))
+    return re.sub(r" ?\x00 ?", "\n", normalize(body(element)))
 
 
 def table_md(element):
@@ -337,7 +349,7 @@ def _block(element, tag):
         for ve in element.findall("varlistentry"):
             mark = f"<!-- id:{ve.get('id')} -->" if ve.get("id") else ""
             terms = ", ".join(
-                f"**{norm(inline(term))}**" for term in ve.findall("term")
+                f"**{normalize(inline(term))}**" for term in ve.findall("term")
             )
             li = ve.find("listitem")
             body = "\n\n".join(mixed(li)) if li is not None else ""
@@ -376,7 +388,8 @@ def _block(element, tag):
     if tag == "simplelist":
         return [
             bullets(
-                [norm(inline(member)) for member in element.findall("member")], False
+                [normalize(inline(member)) for member in element.findall("member")],
+                False,
             )
         ]
 
@@ -395,8 +408,9 @@ def _block(element, tag):
         acronym = element.find("acronym")
         glossdef = element.find("glossdef")
 
-        head = f"**{norm(inline(glossterm)) if glossterm is not None else ''}**" + (
-            f" ({plain(acronym)})" if acronym is not None else ""
+        head = (
+            f"**{normalize(inline(glossterm)) if glossterm is not None else ''}**"
+            + (f" ({plain(acronym)})" if acronym is not None else "")
         )
         body = "\n\n".join(mixed(glossdef)) if glossdef is not None else ""
         see = " ".join(
