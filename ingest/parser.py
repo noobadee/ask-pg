@@ -179,14 +179,33 @@ def mixed(element):
 
 
 def fence(text, language=""):
-    pass
+    text = text.strip("\n")
+    ticks = "```"
+
+    while ticks in text:
+        ticks += "`"
+
+    return f"f{ticks}{language}\n{text}\n{ticks}"
 
 
 def inline(element, code=False):
-    pass
+    output = [element.text or ""]
+
+    for child in element:
+        if isinstance(child.tag, str):
+            output.append(inline_element(child, code))
+        elif child.tag is etree.Entity:
+            output.append("f&{child.name}")
+        output.append(child.tail or "")
+
+    return "".join(output)
 
 
 def gloss_see(child):
+    pass
+
+
+def inline_element(child, code=False):
     pass
 
 
@@ -195,7 +214,47 @@ def bullets(items, ordered):
 
 
 def cmdsyn(element):
-    pass
+
+    def body(element):
+        text = element.text or ""
+
+        for child in element:
+            text += render_node(child) + (child.tail or "")
+
+        return text
+
+    def render_node(element):
+        tag = element.tag
+
+        if not isinstance(tag, str):
+            return ""
+
+        if tag == "sbr":
+            return "\x00"
+
+        if tag in ("arg", "group"):
+            if tag == "group":
+                inner = " | ".join(
+                    x for x in (norm(render_node(child)) for child in element) if x
+                )
+            else:
+                inner = norm(body(element))
+
+            choice = element.get("choice", "opt")
+
+            if choice == "opt":
+                inner = f"[{inner}]"
+            elif choice == "req":
+                inner = "{" + inner + "}"
+
+            if element.get("rep") == "repeat":
+                inner += "..."
+
+            return f" {inner} "
+
+        return body(element)
+
+    return re.sub(r" ?\x00 ?", "\n", norm(body(element)))
 
 
 def table_md(element):
