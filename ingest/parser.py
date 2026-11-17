@@ -174,8 +174,39 @@ def title_of(element):
     pass
 
 
-def mixed(element):
+def is_block(child):
     pass
+
+
+def mixed(element):
+    output, pending_parts = [], []
+
+    def flush():
+        text = norm("".join(pending_parts))
+
+        if text:
+            output.append(text)
+
+        pending_parts.clear()
+
+    pending_parts.append(element.text or "")
+
+    for child in element:
+        if isinstance(child.tag, str) and child.tag in ("title", "titleabbrev"):
+            pass
+        elif is_block(child):
+            flush()
+            output.extend(block(child))
+        elif isinstance(child.tag, str):
+            pending_parts.append(inline_element(child))
+        elif child.tag is etree.Entity:
+            pending_parts.append(f"&{child.name}")
+
+        pending_parts.append(child.tail or "")
+
+    flush()
+
+    return output
 
 
 def fence(text, language=""):
