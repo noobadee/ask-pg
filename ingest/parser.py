@@ -186,6 +186,10 @@ def title_of(element):
     pass
 
 
+def xref_text(lid):
+    pass
+
+
 def fence(text, language=""):
     text = text.strip("\n")
     ticks = "```"
@@ -210,7 +214,9 @@ def inline(element, code=False):
 
 
 def gloss_see(child):
-    pass
+    other_term = child.get("otherterm")
+    label = "See also" if child.tag == "glossseealso" else "See"
+    return f"{label}: {xref_text(other_term)}" if other_term else label
 
 
 def inline_element(child, code=False):
