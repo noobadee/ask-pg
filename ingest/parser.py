@@ -314,8 +314,101 @@ def cmdsyn(element):
     return re.sub(r" ?\x00 ?", "\n", normalize(body(element)))
 
 
-def table_md(element):
-    pass
+def table_markdown(element):
+    title = element.find("title")
+    capital = [f"**Table: {plain(title)}**"] if title is not None else []
+    table_group = element.find("tgroup")
+
+    if table_group is None:
+        return capital
+
+    columns = int(table_group.get("cols", "1"))
+
+    # function tables: one cell per entry, several paragraphs
+    if columns == 1:
+        items = [
+            "\n\n".join(mixed(element))
+            for row in (
+                table_group.find("tbody")
+                if table_group.find("tbody") is not None
+                else []
+            )
+            for element in row.findall("entry")
+        ]
+        items = [index for index in items if index.strip()]
+        return capital + ([bullets(items, False)] if items else [])
+
+    column_names = {
+        column_spec.get("colname"): index
+        for index, column_spec in enumerate(table_group.findall("colspec"))
+        if column_spec.get("colname")
+    }
+
+    spans = {
+        span.get("spanname"): (span.get("namest"), span.get("nameend"))
+        for span in table_group.findall("spanspec")
+    }
+
+    def cell(element):
+        text = "<br>".join(breakline.replace("\n", " ") for breakline in mixed(element))
+        return normalize(text).replace("|", "\\|")
+
+    def grid(section):
+        rows, pending = [], {}
+
+        if section is None:
+            return rows
+
+        for row in section.findall("row"):
+            r = [None] * columns
+
+            for item_id, (count, text) in list(pending.items()):
+                r[count] = text
+
+                if count <= 1:
+                    del pending[item_id]
+                else:
+                    pending[item_id] = (count - 1, text)
+
+            column = 0
+
+            for element in row.findall("entry"):
+                while column < columns and r[column] is not None:
+                    column += 1
+
+                namest, nameend = element.get("namest"), element.get("nameend")
+                span = spans.get("spanname")
+
+                if span:
+                    namest, nameend = span
+
+                start = column_names.get(namest, column) if namest else column
+                end = column_names.get(nameend, start) if nameend else start
+
+                if start >= column_names:
+                    break
+
+                text = cell(element)
+                more_rows = int(element.get("morerows", "0"))
+
+                for col in range(start, min(end, columns - 1) + 1):
+                    r[col] = text if col == start else ""
+
+                    if more_rows:
+                        pending[col] = (more_rows, text if col == start else "")
+
+                column = end + 1
+
+            rows.append([x or "" for x in r])
+
+        return rows
+
+    head, body = grid(table_group.find("thead")), grid(table_group.find("tbody"))
+    header = head[0] if head else [""] + columns
+    rows = head[1:] + body
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * columns]
+    lines += ["| " + " | ".join(row) + " |" for row in rows]
+    return capital + ["\n".join(lines)]
 
 
 # It is the entry point for converting a non-section element into Markdown
@@ -408,7 +501,7 @@ def _block(element, tag):
         ]
 
     if tag in ("table", "informaltable"):
-        return table_md(element)
+        return table_markdown(element)
 
     if tag == "refnamediv":
         names = ", ".join(plain(name) for name in element.findall("refname"))
