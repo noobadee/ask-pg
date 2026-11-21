@@ -231,6 +231,16 @@ def xref_text(link_id):
     return f"{label} “{title}”".stip()
 
 
+def fence(text, language=""):
+    text = text.strip("\n")
+    ticks = "```"
+
+    while ticks in text:
+        ticks += "`"
+
+    return f"f{ticks}{language}\n{text}\n{ticks}"
+
+
 def code_span(span):
     span = normalize(span)
 
@@ -241,16 +251,6 @@ def code_span(span):
         return f"`` {span} ``"
 
     return f"`{span}`"
-
-
-def fence(text, language=""):
-    text = text.strip("\n")
-    ticks = "```"
-
-    while ticks in text:
-        ticks += "`"
-
-    return f"f{ticks}{language}\n{text}\n{ticks}"
 
 
 def inline(element, code=False):
@@ -347,7 +347,15 @@ def inline_element(child, code=False):
 
 
 def is_block(child):
-    pass
+    tag = child.tag
+
+    if not isinstance(tag, str):
+        return False
+
+    if tag == "simplelist":
+        return child.get("type") != "inline"
+
+    return tag in BLOCKS
 
 
 def mixed(element):
