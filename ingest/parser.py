@@ -220,7 +220,77 @@ def gloss_see(child):
 
 
 def inline_element(child, code=False):
-    pass
+    tag = child.tag
+
+    if tag in DROP:
+        return ""
+
+    if tag == "xref":
+        REFS.append(child.get("linkend"))
+        return xref_text(child.get("linkend"))
+
+    if code:
+        return inline(child, True)
+
+    if tag in CODE:
+        return code_span(inline(child, True))
+
+    if tag == "replaceable":
+        return "*" + normalize(inline(child, True)) + "*"
+
+    if tag == "emphasis":
+        marker = "**" if child.get("role") in ("strong", "bold") else "*"
+        formatted_text = normalize(inline(child))
+        return f"{marker}{formatted_text}{marker}" if formatted_text else ""
+
+    if tag == "firstterm":
+        formatted_text = normalize(inline(child))
+        return f"*{formatted_text}*" if formatted_text else ""
+
+    if tag == "quote":
+        return "“" + normalize(inline(child)) + "”"
+
+    if tag == "ulink":
+        text = normalize(inline(child))
+        url = child.get("url", "")
+        return f"[{text}]({url})" if text else url
+
+    if tag == "link":
+        if child.get("linkend"):
+            REFS.append(child.get("linkend"))
+        return normalize(inline(child)) or xref_text(child.get("linkend"))
+
+    if tag == "footnote":
+        return f" (footnote: {normalize(' '.join(mixed(child)))})"
+
+    if tag == "citerefentry":
+        refentrytitle_tag = child.find("refentrytitle")
+        manvolnum_tag = child.find("manvolnum")
+        title = plain(refentrytitle_tag) if refentrytitle_tag is not None else ""
+        volume = plain(manvolnum_tag) if manvolnum_tag is not None else ""
+        return code_span(f"{title}{volume}")
+
+    if tag == "superscript":
+        return "^" + normalize(inline(child))
+
+    if tag == "keycombo":
+        keys = [plain(keycombo) for keycombo in child if isinstance(keycombo.tag, str)]
+        return code_span("+".join(keys))
+
+    if tag == "keycap":
+        return code_span(plain(child))
+
+    if tag in ("glosssee", "glossseealso"):
+        return gloss_see(child)
+
+    if tag == "simplelist":
+        members = [normalize(inline(member)) for member in child.findall("member")]
+        return ", ".join(members)
+
+    if tag not in PASS:
+        UNHANDLED[tag] += 1
+
+    return inline(child)
 
 
 def is_block(child):
