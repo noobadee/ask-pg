@@ -215,7 +215,15 @@ def xref_text(link_id):
 
 
 def code_span(span):
-    pass
+    span = normalize(span)
+
+    if not span:
+        return ""
+
+    if "`" in span:
+        return f"`` {span} ``"
+
+    return f"`{span}`"
 
 
 def fence(text, language=""):
