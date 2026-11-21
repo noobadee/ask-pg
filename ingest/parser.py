@@ -186,7 +186,35 @@ def title_of(element):
     pass
 
 
-def xref_text(lid):
+def xref_text(link_id):
+    element = IDS.get(link_id)
+
+    if element is None:
+        UNRESOLVED[link_id] += 1
+        return link_id or ""
+
+    if element.get("xreflabel"):
+        return element.get("xreflabel")
+
+    if element.tag == "varlistentry":
+        term_element = element.find("term/varname")
+
+        if term_element is None:
+            term_element.find("term")
+
+        return plain(term_element) if term_element is not None else link_id
+
+    title = title_of(element)
+
+    if element.tag == "refentry":
+        return title
+
+    label = LABEL.get(element.tag, "")
+
+    return f"{label} “{title}”".stip()
+
+
+def code_span(span):
     pass
 
 
