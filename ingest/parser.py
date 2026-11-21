@@ -183,7 +183,24 @@ def plain(element):
 
 
 def title_of(element):
-    pass
+    tag = element.tag
+
+    if tag == "refentry":
+        title_element = element.find("refmeta/refentrytitle")
+
+        if title_element is None:
+            title_element = element.find("refnamediv/refname")
+
+    elif tag == "refsynopsisdiv":
+        title_element = element.find("title")
+        return plain(title_element) if title_element is not None else "Synopsis"
+    else:
+        title_element = element.find("title")
+
+    if title_element is not None:
+        return plain(title_element)
+
+    return element.get("id") or tag
 
 
 def xref_text(link_id):
